@@ -1,14 +1,32 @@
+require("dotenv").config();
 const express = require("express");
+const http = require("http");
 const cors = require("cors");
+const cron = require("node-cron");
+const { Server } = require("socket.io");
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
 
 const PORT = 4000;
 
 app.use(cors());
 
+let solution = "guest"
+
+async function setSolution() {
+    const response = await fetch(process.env.WORDS_API);
+    const wordsList = await response.json();
+    solution = wordsList[Math.floor(Math.random() * wordsList.length)].toLowerCase();
+    io.send("wordChanged");
+}
+setSolution();
+cron.schedule("* * 0 * * *", async () => {
+    setSolution();
+})
+
 app.get("/checkWord", (req, res) => { 
     let colors = [];
-    let solution = "guest";
     let word = req.query.word;
     let index = 0;
     for(let letter of word) {
@@ -44,6 +62,10 @@ app.get("/checkWord", (req, res) => {
         playerWon: word === solution, 
         solution: solution
     });
+})
+
+io.on("connection", (socket) => {
+    console.log(`connected to ${socket.id}`)
 })
 
 app.listen(PORT, () => {
