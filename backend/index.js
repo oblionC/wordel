@@ -25,6 +25,10 @@ cron.schedule("* * 0 * * *", async () => {
     setSolution();
 })
 
+app.get("/", (req, res) => {
+    return res.send("Working");
+})
+
 app.get("/checkWord", (req, res) => { 
     let colors = [];
     let word = req.query.word;
