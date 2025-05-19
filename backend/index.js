@@ -26,7 +26,6 @@ cron.schedule("* * 0 * * *", async () => {
 })
 
 app.get("/", (req, res) => {
-    console.log("wow")
     return res.send("Working");
 })
 
