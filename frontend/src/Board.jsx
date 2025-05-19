@@ -1,31 +1,11 @@
 import { useEffect, useState } from "react";
+import { socket } from "./socket";
 
 const SOLUTION_SIZE = 5;
 const MAX_GUESSES = 6;
 
 function Tile({ word, color, index }) {
     const letter = word[index]
-    // useEffect(() => {
-    //     if(letter === solution[index]) {
-    //         setColor("green");
-    //     }
-    //     else if(solution.includes(letter)) {
-    //         let count = 0;
-    //         for(let i = 0; i < solution.length; i++) {
-    //             if(solution[i] === letter) count++;
-    //             if(solution[i] === letter && solution[i] === word[i]) count--;
-    //         }
-    //         if(count > 0) {
-    //             setColor("orange")
-    //         }
-    //         else {
-    //             setColor("gray")
-    //         }
-    //     }
-    //     else if(letter) {
-    //         setColor("gray");
-    //     }
-    // }, [reveal, index, solution])
 
     return (
         <div className={`tile ${color}`}>
