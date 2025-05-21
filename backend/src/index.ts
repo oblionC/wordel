@@ -1,19 +1,73 @@
-import { DurableObject } from "cloudflare:workers";
+import { DurableObject } from 'cloudflare:workers';
+
+const corsHeaders = {
+	'Access-Control-Allow-Origin': '*',
+	'Access-Control-Allow-Methods': 'GET,HEAD,POST,OPTIONS',
+	'Access-Control-Max-Age': '86400',
+};
+// function handleOptions(request: Request) {
+// 	// Make sure the necessary headers are present
+// 	// for this to be a valid pre-flight request
+// 	let headers = request.headers;
+// 	if (
+// 		headers.get('Origin') !== null &&
+// 		headers.get('Access-Control-Request-Method') !== null &&
+// 		headers.get('Access-Control-Request-Headers') !== null
+// 	) {
+// 		// Handle CORS pre-flight request.
+// 		// If you want to check or reject the requested method + headers
+// 		// you can do that here.
+		
+// 		let accessControlRequestHeaders = request.headers.get('Access-Control-Request-Headers');
+// 		let respHeaders;
+// 		if(accessControlRequestHeaders) {
+// 			respHeaders = new Headers({
+// 				...corsHeaders,
+// 				// Allow all future content Request headers to go back to browser
+// 				// such as Authorization (Bearer) or X-Client-Name-Version
+// 				'Access-Control-Allow-Headers': accessControlRequestHeaders,
+// 			});
+// 		}
+// 		else {
+// 			respHeaders = corsHeaders;
+// 		}
+// 		return new Response(null, {
+// 			headers: respHeaders,
+// 		});
+// 	} else {
+// 		// Handle standard OPTIONS request.
+// 		// If you want to allow other HTTP Methods, you can do that here.
+// 		return new Response(null, {
+// 			headers: {
+// 				Allow: 'GET, HEAD, POST, OPTIONS',
+// 			},
+// 		});
+// 	}
+// }
+// async function handleRequest(request: Request) {
+// 	console.log(request);
+// 	let response;
+// 	if (request.method === 'OPTIONS') {
+// 		response = handleOptions(request);
+// 	} else {
+// 		response = await fetch(request);
+// 		response = new Response(response.body, response);
+// 		response.headers.set('Access-Control-Allow-Origin', '*');
+// 		response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+// 	}
+// 	return response;
+// }
+// addEventListener('fetch', (event) => {
+// 	event.respondWith(handleRequest(event.request).catch((err) => new Response(err.stack, { status: 500 })));
+// });
 
 interface CheckWordObject {
-	colors: Array<string>,
-	playerWon: boolean,
-	solution: string
+	colors: Array<string>;
+	playerWon: boolean;
+	solution: string;
 }
 
-const WORDS_API = "https://api.frontendexpert.io/api/fe/wordle-words";
-
-async function setNewSolution() {
-	const response = await fetch(WORDS_API);
-	const wordsList: Array<string> = await response.json();
-	return(wordsList[Math.floor(Math.random() * wordsList.length)])
-}
-
+const WORDS_API = 'https://api.frontendexpert.io/api/fe/wordle-words';
 /**
  * Welcome to Cloudflare Workers! This is your first Durable Objects application.
  *
@@ -37,8 +91,6 @@ export class WordelSolution extends DurableObject<Env> {
 	 * @param env - The interface to reference bindings declared in wrangler.jsonc
 	 */
 
-	solution: string = "guest";
-
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env);
 	}
@@ -51,36 +103,45 @@ export class WordelSolution extends DurableObject<Env> {
 	 * @returns The greeting to be sent back to the Worker
 	 */
 	async sayHello(): Promise<string> {
-		let word = await setNewSolution();
-		return `${word}`;
+		return `working`;
+	}
+
+	async setNewSolution() {
+		const response = await fetch(WORDS_API);
+		const wordsList: Array<string> = await response.json();
+		let solution = wordsList[Math.floor(Math.random() * wordsList.length)];
+		this.ctx.storage.put("solution", solution);
+	}
+	
+	async getSolution() {
+		return this.ctx.storage.get("solution");
 	}
 
 	async checkWord(word: string): Promise<CheckWordObject> {
 		let colors = [];
 		let index = 0;
-		for(let letter of word) {
-			let color = "";
-			if(letter === this.solution[index]) {
-				color = "green";
-			}
-			else if(this.solution.includes(letter)) {
+		let solution: string = await this.ctx.storage.get("solution") || "hello";	
+		solution = solution.toLowerCase();
+		for (let letter of word) {
+			let color = '';
+			if (letter === solution[index]) {
+				color = 'green';
+			} else if (solution.includes(letter)) {
 				let count = 0;
-				for(let i = 0; i < this.solution.length; i++) {
-					if(this.solution[i] === letter) count++;
-					if(this.solution[i] === letter && this.solution[i] === word[i]) count--;
+				for (let i = 0; i < solution.length; i++) {
+					if (solution[i] === letter) count++;
+					if (solution[i] === letter && solution[i] === word[i]) count--;
 				}
-				for(let i = 0; i < index; i++) {
-					if(word[i] === letter) count--;
+				for (let i = 0; i < index; i++) {
+					if (word[i] === letter) count--;
 				}
-				if(count > 0) {
-					color = "orange"
+				if (count > 0) {
+					color = 'orange';
+				} else {
+					color = 'gray';
 				}
-				else {
-					color = "gray"
-				}
-			}
-			else if(letter) {
-				color = "gray";
+			} else if (letter) {
+				color = 'gray';
 			}
 			colors.push(color);
 			index++;
@@ -88,9 +149,9 @@ export class WordelSolution extends DurableObject<Env> {
 
 		return {
 			colors: colors,
-			playerWon: word === this.solution, 
-			solution: this.solution
-		}
+			playerWon: word === solution,
+			solution: solution,
+		};
 	}
 }
 
@@ -105,14 +166,21 @@ export default {
 	 */
 	async fetch(request, env, ctx): Promise<Response> {
 		const url: URL = new URL(request.url);
-		const word = url.searchParams.get("word"); 
+		const word: string | null = url.searchParams.get('word');
 
-		const id: DurableObjectId = env.WORDEL_SOLUTION.idFromName("main");
+		const id: DurableObjectId = env.WORDEL_SOLUTION.idFromName('main');
 		const stub = env.WORDEL_SOLUTION.get(id);
-		switch(url.pathname) {
-			case "/": {
-				const checkWordObject = await stub.checkWord("hello");
-				return new Response(JSON.stringify(checkWordObject));
+		switch (url.pathname) {
+			case '/': {
+				if (word) {
+					const checkWordObject = await stub.checkWord(word);
+					let response = new Response(JSON.stringify(checkWordObject));
+					Object.keys(corsHeaders).forEach((header) => {
+						response.headers.set(header, corsHeaders[header as keyof typeof corsHeaders]);
+					})
+					return response;
+				}
+				return new Response();
 			}
 			default: {
 				const greeting = await stub.sayHello();
@@ -120,4 +188,10 @@ export default {
 			}
 		}
 	},
+	async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+		const id: DurableObjectId = env.WORDEL_SOLUTION.idFromName('main');
+		const stub = env.WORDEL_SOLUTION.get(id);
+		await stub.setNewSolution();
+		console.log(stub.getSolution());
+	}
 } satisfies ExportedHandler<Env>;

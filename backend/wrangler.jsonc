@@ -7,6 +7,9 @@
 	"name": "wordel-backend",
 	"main": "src/index.ts",
 	"compatibility_date": "2025-05-19",
+	"triggers": {
+		"crons": ["0 0 */1 * *"]
+	},
 	"migrations": [
 		{
 			"new_sqlite_classes": [
@@ -24,7 +27,8 @@
 		]
 	},
 	"observability": {
-		"enabled": true
+		"enabled": true,
+		"head_sampling_rate": 1
 	}
 	/**
 	 * Smart Placement
