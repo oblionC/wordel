@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { socket } from "./socket";
 
 const SOLUTION_SIZE = 5;
 const MAX_GUESSES = 6;
@@ -44,7 +43,10 @@ export default function Board() {
 
     useEffect(() => {
         function handleKeyPress(event) {
-            if(currentGuess >= MAX_GUESSES) return;
+            if(userWon) return;
+            if(userLost) return;
+            console.log(currentGuess, colors.length)
+            if(colors.length < currentGuess) return
             if (event.key.length === 1 && guesses[currentGuess].length < SOLUTION_SIZE) {
                 setGuesses(oldGuesses => {
                     let newGuesses = [...oldGuesses];
@@ -60,7 +62,7 @@ export default function Board() {
                 })
             }
             else if(event.key === "Enter" && guesses[currentGuess].length === SOLUTION_SIZE) {
-                let url = new URL("http://localhost:4000/checkWord");
+                let url = new URL(process.env.REACT_APP_BACKEND_URL);
                 url.searchParams.append("word", guesses[currentGuess]);
                 url.searchParams.append("lost", currentGuess >= MAX_GUESSES - 1);
                 fetch(url).then((response => {
@@ -87,7 +89,7 @@ export default function Board() {
 
         document.addEventListener("keydown", handleKeyPress);
         return () => document.removeEventListener("keydown", handleKeyPress);
-    }, [currentGuess, guesses])
+    }, [currentGuess, colors, guesses, userWon])
 
     return (
         <div className="board">

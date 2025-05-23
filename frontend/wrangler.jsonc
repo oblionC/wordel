@@ -1,0 +1,7 @@
+{
+    "name": "wordel-frontend",
+    "compatibility_date": "2025-05-21",
+    "assets": {
+        "directory": "./build"
+    }
+}

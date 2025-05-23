@@ -64,7 +64,7 @@ const corsHeaders = {
 interface CheckWordObject {
 	colors: Array<string>;
 	playerWon: boolean;
-	solution: string;
+	solution: string | null;
 }
 
 const WORDS_API = 'https://api.frontendexpert.io/api/fe/wordle-words';
@@ -117,7 +117,7 @@ export class WordelSolution extends DurableObject<Env> {
 		return this.ctx.storage.get("solution");
 	}
 
-	async checkWord(word: string): Promise<CheckWordObject> {
+	async checkWord(word: string, lost: string): Promise<CheckWordObject> {
 		let colors = [];
 		let index = 0;
 		let solution: string = await this.ctx.storage.get("solution") || "hello";	
@@ -150,7 +150,7 @@ export class WordelSolution extends DurableObject<Env> {
 		return {
 			colors: colors,
 			playerWon: word === solution,
-			solution: solution,
+			solution: lost === "true" ? solution : null,
 		};
 	}
 }
@@ -167,13 +167,14 @@ export default {
 	async fetch(request, env, ctx): Promise<Response> {
 		const url: URL = new URL(request.url);
 		const word: string | null = url.searchParams.get('word');
+		const lost: string | null = url.searchParams.get('lost');
 
 		const id: DurableObjectId = env.WORDEL_SOLUTION.idFromName('main');
 		const stub = env.WORDEL_SOLUTION.get(id);
 		switch (url.pathname) {
 			case '/': {
-				if (word) {
-					const checkWordObject = await stub.checkWord(word);
+				if (word && lost) {
+					const checkWordObject = await stub.checkWord(word, lost);
 					let response = new Response(JSON.stringify(checkWordObject));
 					Object.keys(corsHeaders).forEach((header) => {
 						response.headers.set(header, corsHeaders[header as keyof typeof corsHeaders]);
@@ -192,6 +193,5 @@ export default {
 		const id: DurableObjectId = env.WORDEL_SOLUTION.idFromName('main');
 		const stub = env.WORDEL_SOLUTION.get(id);
 		await stub.setNewSolution();
-		console.log(stub.getSolution());
 	}
 } satisfies ExportedHandler<Env>;
